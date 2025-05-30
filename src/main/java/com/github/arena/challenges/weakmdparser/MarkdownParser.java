@@ -2,79 +2,84 @@ package com.github.arena.challenges.weakmdparser;
 
 public class MarkdownParser {
 
-    String parse(String markdown) {
-        String[] lines = markdown.split("\n");
-        String result = "";
-        boolean activeList = false;
+    String parse(String markdownInput) {
+        String[] markdownLines = markdownInput.split("\n");
+        String htmlOutput = "";
+        boolean isUnorderedListActive = false;
 
-        for (int i = 0; i < lines.length; i++) {
+        for (int lineIndex = 0; lineIndex < markdownLines.length; lineIndex++) {
 
-            String theLine = ph(lines[i]);
 
-            if (theLine == null) {
-                theLine = li(lines[i]);
+            String currentRawLine = markdownLines[lineIndex];
+
+            String parsedLineContent = parseHeader(currentRawLine);
+
+            if (parsedLineContent == null) {
+                parsedLineContent = parseListItem(currentRawLine);
             }
 
-            if (theLine == null) {
-                theLine = p(lines[i]);
+            if (parsedLineContent == null) {
+                parsedLineContent = parseParagraph(currentRawLine);
             }
 
-            if (theLine.matches("(<li>).*") && !theLine.matches("(<h).*") && !theLine.matches("(<p>).*") && !activeList) {
-                activeList = true;
-                result = result + "<ul>";
-                result = result + theLine;
-            } else if (!theLine.matches("(<li>).*") && activeList) {
-                activeList = false;
-                result = result + "</ul>";
-                result = result + theLine;
+            if (parsedLineContent.matches("(<li>).*") && !parsedLineContent.matches("(<h).*") && !parsedLineContent.matches("(<p>).*") && !isUnorderedListActive) {
+                isUnorderedListActive = true;
+                htmlOutput = htmlOutput + "<ul>";
+                htmlOutput = htmlOutput + parsedLineContent;
+            } else if (!parsedLineContent.matches("(<li>).*") && isUnorderedListActive) {
+                isUnorderedListActive = false;
+                htmlOutput = htmlOutput + "</ul>";
+                htmlOutput = htmlOutput + parsedLineContent;
             } else {
-                result = result + theLine;
+                htmlOutput = htmlOutput + parsedLineContent;
             }
         }
 
-        if (activeList) {
-            result = result + "</ul>";
+        if (isUnorderedListActive) {
+            htmlOutput = htmlOutput + "</ul>";
         }
 
-        return result;
+        return htmlOutput;
     }
 
-    protected String ph(String markdown) {
-        int count = 0;
 
-        for (int i = 0; i < markdown.length() && markdown.charAt(i) == '#'; i++) {
-            count++;
+    protected String parseHeader(String markdownLine) {
+        int hashSymbolCount = 0;
+
+        for (int charIndex = 0; charIndex < markdownLine.length() && markdownLine.charAt(charIndex) == '#'; charIndex++) {
+            hashSymbolCount++;
         }
 
-        if (count == 0) {
+        if (hashSymbolCount == 0) {
             return null;
         }
 
-        return "<h" + Integer.toString(count) + ">" + markdown.substring(count + 1) + "</h" + Integer.toString(count) + ">";
+        return "<h" + hashSymbolCount + ">" + markdownLine.substring(hashSymbolCount + 1) + "</h" + hashSymbolCount + ">";
     }
 
-    public String li(String markdown) {
-        if (markdown.startsWith("*")) {
-            String skipAsterisk = markdown.substring(2);
-            String listItemString = parseSomeSymbols(skipAsterisk);
-            return "<li>" + listItemString + "</li>";
+    public String parseListItem(String markdownLine) {
+        if (markdownLine.startsWith("*")) {
+            String listItemTextContent = markdownLine.substring(2);
+            String formattedListItemText = parseInlineFomatting(listItemTextContent);
+            return "<li>" + formattedListItemText + "</li>";
         }
 
         return null;
     }
 
-    public String p(String markdown) {
-        return "<p>" + parseSomeSymbols(markdown) + "</p>";
+    public String parseParagraph(String markdownLine) {
+        return "<p>" + parseInlineFomatting(markdownLine) + "</p>";
     }
 
-    public String parseSomeSymbols(String markdown) {
+    public String parseInlineFomatting(String inputText) {
 
-        String lookingFor = "__(.+)__";
-        String update = "<strong>$1</strong>";
-        String workingOn = markdown.replaceAll(lookingFor, update);
+        String regexPatternForStrong = "__(.+)__";
+        String htmlFormatForStrong = "<strong>$1</strong>";
 
-        lookingFor = "_(.+)_";
-        update = "<em>$1</em>";
-        return workingOn.replaceAll(lookingFor, update);
+        String processedText = inputText.replaceAll(regexPatternForStrong, htmlFormatForStrong);
+
+        String regexPatternForEmphasis = "_(.+)_";
+        String htmlFormatForEmphasis = "<em>$1</em>";
+        return processedText.replaceAll(regexPatternForEmphasis, htmlFormatForEmphasis);
     }
 }
