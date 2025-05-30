@@ -3,43 +3,48 @@ package com.github.arena.challenges.weakmdparser;
 public class MarkdownParser {
 
     String parse(String markdownInput) {
+        if (markdownInput == null) {
+            return "";
+        }
+
         String[] markdownLines = markdownInput.split("\n");
-        String htmlOutput = "";
+        StringBuilder htmlOutput = new StringBuilder();
         boolean isUnorderedListActive = false;
 
-        for (int lineIndex = 0; lineIndex < markdownLines.length; lineIndex++) {
+        for (String currentRawLine : markdownLines) {
+            LineType currentLineType = determineMarkdownLineType(currentRawLine);
 
-
-            String currentRawLine = markdownLines[lineIndex];
-
-            String parsedLineContent = parseHeader(currentRawLine);
-
-            if (parsedLineContent == null) {
-                parsedLineContent = parseListItem(currentRawLine);
-            }
-
-            if (parsedLineContent == null) {
-                parsedLineContent = parseParagraph(currentRawLine);
-            }
-
-            if (parsedLineContent.matches("(<li>).*") && !parsedLineContent.matches("(<h).*") && !parsedLineContent.matches("(<p>).*") && !isUnorderedListActive) {
-                isUnorderedListActive = true;
-                htmlOutput = htmlOutput + "<ul>";
-                htmlOutput = htmlOutput + parsedLineContent;
-            } else if (!parsedLineContent.matches("(<li>).*") && isUnorderedListActive) {
-                isUnorderedListActive = false;
-                htmlOutput = htmlOutput + "</ul>";
-                htmlOutput = htmlOutput + parsedLineContent;
+            if (currentLineType == LineType.UNORDERED_LIST_ITEM) {
+                if (!isUnorderedListActive) {
+                    htmlOutput.append("<ul>");
+                    isUnorderedListActive = true;
+                }
             } else {
-                htmlOutput = htmlOutput + parsedLineContent;
+                if (isUnorderedListActive) {
+                    htmlOutput.append("</ul>");
+                    isUnorderedListActive = false;
+                }
+            }
+
+            switch (currentLineType) {
+                case HEADER:
+                    htmlOutput.append(parseHeader(currentRawLine));
+                    break;
+                case UNORDERED_LIST_ITEM:
+                    htmlOutput.append(parseListItem(currentRawLine));
+                    break;
+                case EMPTY:
+                case PARAGRAPH:
+                    htmlOutput.append(parseParagraph(currentRawLine));
+                    break;
             }
         }
 
         if (isUnorderedListActive) {
-            htmlOutput = htmlOutput + "</ul>";
+            htmlOutput.append("</ul>");
         }
 
-        return htmlOutput;
+        return htmlOutput.toString();
     }
 
 
@@ -81,5 +86,21 @@ public class MarkdownParser {
         String regexPatternForEmphasis = "_(.+)_";
         String htmlFormatForEmphasis = "<em>$1</em>";
         return processedText.replaceAll(regexPatternForEmphasis, htmlFormatForEmphasis);
+    }
+
+    private LineType determineMarkdownLineType(String markdownLine) {
+        if (markdownLine.isEmpty()) {
+            return LineType.EMPTY;
+        } else if (markdownLine.startsWith("#")) {
+            return LineType.HEADER;
+        } else if (markdownLine.startsWith("* ")) {
+            return LineType.UNORDERED_LIST_ITEM;
+        } else {
+            return LineType.PARAGRAPH;
+        }
+    }
+
+    private enum LineType {
+        HEADER, UNORDERED_LIST_ITEM, PARAGRAPH, EMPTY
     }
 }
