@@ -49,43 +49,56 @@ public class MarkdownParser {
 
 
     protected String parseHeader(String markdownLine) {
-        int hashSymbolCount = 0;
-
-        for (int charIndex = 0; charIndex < markdownLine.length() && markdownLine.charAt(charIndex) == '#'; charIndex++) {
-            hashSymbolCount++;
+        int headerLevel = 0;
+        while (headerLevel < markdownLine.length() && markdownLine.charAt(headerLevel) == '#') {
+            headerLevel++;
         }
 
-        if (hashSymbolCount == 0) {
+        if (headerLevel == 0) {
             return null;
         }
 
-        return "<h" + hashSymbolCount + ">" + markdownLine.substring(hashSymbolCount + 1) + "</h" + hashSymbolCount + ">";
+        int contentStart = headerLevel;
+        if (contentStart < markdownLine.length() && markdownLine.charAt(contentStart) == ' ') {
+            contentStart++;
+        }
+
+        String content = markdownLine.substring(contentStart);
+        return String.format("<h%d>%s</h%d>", headerLevel, content, headerLevel);
     }
 
     public String parseListItem(String markdownLine) {
-        if (markdownLine.startsWith("*")) {
-            String listItemTextContent = markdownLine.substring(2);
-            String formattedListItemText = parseInlineFomatting(listItemTextContent);
-            return "<li>" + formattedListItemText + "</li>";
+        if (!markdownLine.startsWith("* ")) {
+            return null;
         }
 
-        return null;
+        String content = markdownLine.substring(2);
+        return "<li>" + parseInlineFormatting(content) + "</li>";
     }
 
     public String parseParagraph(String markdownLine) {
-        return "<p>" + parseInlineFomatting(markdownLine) + "</p>";
+        String formatted = parseInlineFormatting(markdownLine);
+        return "<p>" + formatted + "</p>";
     }
 
-    public String parseInlineFomatting(String inputText) {
+    public String parseInlineFormatting(String inputText) {
+        if (inputText == null) {
+            return "";
+        }
 
-        String regexPatternForStrong = "__(.+)__";
-        String htmlFormatForStrong = "<strong>$1</strong>";
+        String processedText = inputText;
 
-        String processedText = inputText.replaceAll(regexPatternForStrong, htmlFormatForStrong);
+        //bold
+        String boldRegex = "__(.+)__";
+        String boldHtmlReplacement = "<strong>$1</strong>";
+        processedText = processedText.replaceAll(boldRegex, boldHtmlReplacement);
 
-        String regexPatternForEmphasis = "_(.+)_";
-        String htmlFormatForEmphasis = "<em>$1</em>";
-        return processedText.replaceAll(regexPatternForEmphasis, htmlFormatForEmphasis);
+        //italics
+        String italicsRegex = "_(.+)_";
+        String italicsHtmlReplacement = "<em>$1</em>";
+        processedText = processedText.replaceAll(italicsRegex, italicsHtmlReplacement);
+
+        return processedText;
     }
 
     private LineType determineMarkdownLineType(String markdownLine) {
